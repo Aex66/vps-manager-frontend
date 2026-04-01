@@ -1,17 +1,27 @@
 "use client"
 
 import type { MouseEvent } from "react"
-import { MoreHorizontal, Play, Square, RotateCcw, Terminal, Settings } from "lucide-react"
+import {
+  FileJson,
+  FileLock2,
+  FolderOpen,
+  MoreHorizontal,
+  Play,
+  RotateCcw,
+  Square,
+  Terminal,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { VPS } from "@/lib/vps-data"
-import type { VPSRow } from "@/lib/types"
+import type { VpsSettingsPanel, VPSRow } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface VPSGridProps {
@@ -22,6 +32,7 @@ interface VPSGridProps {
   onOpenCommandMenu: (row: VPSRow, anchor: { x: number; y: number }) => void
   /** Per-vPS command cooldown (Start/Stop/Restart & menu). */
   isVpsCommandCoolingDown: (vpsId: string) => boolean
+  onOpenSettings: (row: VPSRow, panel: VpsSettingsPanel) => void
 }
 
 function StatusBadge({ status }: { status: VPS["status"] }) {
@@ -66,6 +77,7 @@ function VPSCard({
   onSelect,
   onRunCommand,
   onOpenCommandMenu,
+  onOpenSettings,
   commandCooldown,
 }: {
   server: VPS
@@ -73,6 +85,7 @@ function VPSCard({
   onSelect: () => void
   onRunCommand: (vpsId: string, cmd: string) => void
   onOpenCommandMenu: (row: VPSRow, anchor: { x: number; y: number }) => void
+  onOpenSettings: (row: VPSRow, panel: VpsSettingsPanel) => void
   commandCooldown: boolean
 }) {
   const row = server.agentRow
@@ -141,11 +154,39 @@ function VPSCard({
             >
               <Terminal className="h-4 w-4" /> Agent commands…
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              Settings
+            </DropdownMenuLabel>
             <DropdownMenuItem
               className="gap-2"
-              onClick={(e: MouseEvent) => e.preventDefault()}
+              disabled={!row}
+              onSelect={() => {
+                if (!row) return
+                window.setTimeout(() => onOpenSettings(row, "yummy_config"), 0)
+              }}
             >
-              <Settings className="h-4 w-4" /> Settings
+              <FileJson className="h-4 w-4" /> Yummy config
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!row}
+              onSelect={() => {
+                if (!row) return
+                window.setTimeout(() => onOpenSettings(row, "yummy_auth"), 0)
+              }}
+            >
+              <FileLock2 className="h-4 w-4" /> Yummy auth
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!row}
+              onSelect={() => {
+                if (!row) return
+                window.setTimeout(() => onOpenSettings(row, "volt"), 0)
+              }}
+            >
+              <FolderOpen className="h-4 w-4" /> Volt files
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -169,6 +210,7 @@ export function VPSGrid({
   onSelect,
   onRunCommand,
   onOpenCommandMenu,
+  onOpenSettings,
   isVpsCommandCoolingDown,
 }: VPSGridProps) {
   return (
@@ -181,6 +223,7 @@ export function VPSGrid({
           onSelect={() => onSelect(server.id)}
           onRunCommand={onRunCommand}
           onOpenCommandMenu={onOpenCommandMenu}
+          onOpenSettings={onOpenSettings}
           commandCooldown={isVpsCommandCoolingDown(server.id)}
         />
       ))}

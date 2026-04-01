@@ -363,7 +363,6 @@ export function LiveViewPanel({
                 ? `↑ ${(sent ?? 0).toFixed(1)} ↓ ${(recv ?? 0).toFixed(1)} Mbps`
                 : "—"
             }
-            subValue={showNet ? "Per agent sample interval (~2s)" : undefined}
           />
           <MetricRow
             icon={<Clock className="h-4 w-4" />}

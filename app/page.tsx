@@ -11,6 +11,10 @@ import {
 import { VPSGrid } from "@/components/dashboard/vps-grid"
 import { LiveViewPanel } from "@/components/dashboard/live-view-panel"
 import { CommandFlyout } from "@/components/dashboard/command-flyout"
+import {
+  VpsSettingsDialog,
+  type VpsSettingsTarget,
+} from "@/components/dashboard/vps-settings-dialog"
 import { useVpsDashboard } from "@/hooks/use-vps-dashboard"
 import type { VPS } from "@/lib/vps-data"
 
@@ -40,6 +44,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [sortKey, setSortKey] = useState<SortKey>("name")
   const lastShotForId = useRef<string | null>(null)
+  const [settingsTarget, setSettingsTarget] = useState<VpsSettingsTarget>(null)
 
   useLayoutEffect(() => {
     try {
@@ -85,6 +90,7 @@ export default function Dashboard() {
     setAutoIntervalMinutes,
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
+    agentRpc,
   } = useVpsDashboard(token)
 
   useEffect(() => {
@@ -183,6 +189,7 @@ export default function Dashboard() {
               onSelect={(id) => setSelectedRow(vpsList.find((v) => v.id === id) ?? null)}
               onRunCommand={sendCommand}
               onOpenCommandMenu={openCommandMenu}
+              onOpenSettings={(row, panel) => setSettingsTarget({ row, panel })}
               isVpsCommandCoolingDown={isVpsCommandCoolingDown}
             />
 
@@ -208,6 +215,12 @@ export default function Dashboard() {
           />
         </aside>
       </div>
+
+      <VpsSettingsDialog
+        target={settingsTarget}
+        onClose={() => setSettingsTarget(null)}
+        agentRpc={agentRpc}
+      />
 
       <CommandFlyout
         vps={commandMenu?.vps ?? null}

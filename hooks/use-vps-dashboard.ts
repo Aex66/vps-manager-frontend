@@ -5,7 +5,12 @@ import { wsUiUrl } from "@/lib/api"
 import { describeBulkCommand, describeCommand } from "@/lib/command-notifications"
 import { downloadTextFile, sanitizeFilename } from "@/lib/downloadCookies"
 import { averageCpu, mapRowToVps, type VPS } from "@/lib/vps-data"
-import { isVpsRunning, type VPSRow, type WSMsg } from "@/lib/types"
+import {
+  isVpsRunning,
+  type AgentRpcResultMsg,
+  type VPSRow,
+  type WSMsg,
+} from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 
 export type LogEntry = { t: number; message: string }
@@ -33,6 +38,16 @@ export function useVpsDashboard(token: string | null) {
   const wsRef = useRef<WebSocket | null>(null)
   const perVpsUntilRef = useRef<Record<string, number>>({})
   const bulkUntilRef = useRef(0)
+  const rpcWaitersRef = useRef<
+    Map<
+      string,
+      {
+        resolve: (v: AgentRpcResultMsg) => void
+        reject: (e: Error) => void
+        timer: ReturnType<typeof setTimeout>
+      }
+    >
+  >(new Map())
 
   const autoMinDraft = useMemo(
     () => Math.max(1, Math.round(autoIntervalSec / 60)),
@@ -176,6 +191,15 @@ export function useVpsDashboard(token: string | null) {
           setShotInterval(msg.screenshot_interval)
         }
         if (msg.type === "config_snapshot_interval") setShotInterval(msg.seconds)
+        if (msg.type === "agent_rpc_result") {
+          const w = rpcWaitersRef.current.get(msg.request_id)
+          if (w) {
+            clearTimeout(w.timer)
+            rpcWaitersRef.current.delete(msg.request_id)
+            if (msg.ok) w.resolve(msg)
+            else w.reject(new Error(msg.error || "Agent error"))
+          }
+        }
       } catch {
         /* ignore */
       }
@@ -257,6 +281,36 @@ export function useVpsDashboard(token: string | null) {
     setCommandMenu({ vps, x: anchor.x, y: anchor.y })
   }, [])
 
+  const agentRpc = useCallback(
+    (vpsId: string, payload: Record<string, unknown>) => {
+      return new Promise<AgentRpcResultMsg>((resolve, reject) => {
+        const request_id =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        const timer = setTimeout(() => {
+          if (rpcWaitersRef.current.has(request_id)) {
+            rpcWaitersRef.current.delete(request_id)
+            reject(new Error("Request timed out"))
+          }
+        }, 90_000)
+        rpcWaitersRef.current.set(request_id, { resolve, reject, timer })
+        const sent = send({
+          type: "agent_rpc",
+          vps_id: vpsId,
+          request_id,
+          ...payload,
+        })
+        if (!sent) {
+          clearTimeout(timer)
+          rpcWaitersRef.current.delete(request_id)
+          reject(new Error("Not connected"))
+        }
+      })
+    },
+    [send],
+  )
+
   const selectedServer: VPS | null = useMemo(
     () => (selectedRow ? mapRowToVps(selectedRow) : null),
     [selectedRow],
@@ -294,5 +348,6 @@ export function useVpsDashboard(token: string | null) {
     setAutoIntervalMinutes,
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
+    agentRpc,
   }
 }

@@ -1,6 +1,8 @@
 export type VPSRow = {
   id: string
   hostname: string
+  /** Windows MachineGuid / Linux machine-id when agent sends it */
+  machine_id?: string
   connected: boolean
   last_seen: number
   has_metrics?: boolean
@@ -15,10 +17,21 @@ export type VPSRow = {
   net_recv_mbps?: number
 }
 
+export type AgentRpcResultMsg = {
+  type: "agent_rpc_result"
+  vps_id: string
+  request_id: string
+  ok: boolean
+  error?: string
+  content?: string
+  files?: string[]
+}
+
 export type WSMsg =
   | { type: "vps_list"; vps: VPSRow[] }
   | { type: "screenshot"; vps_id: string; data: string }
   | { type: "cookies"; vps_id: string; data: string }
+  | AgentRpcResultMsg
   | {
       type: "auto_restart_state"
       enabled: boolean
@@ -26,6 +39,8 @@ export type WSMsg =
       screenshot_interval: number
     }
   | { type: "config_snapshot_interval"; seconds: number }
+
+export type VpsSettingsPanel = "yummy_config" | "yummy_auth" | "volt"
 
 export const COMMANDS = [
   { id: "refresh_all", label: "Refresh All" },
