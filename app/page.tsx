@@ -91,6 +91,7 @@ export default function Dashboard() {
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
     agentRpc,
+    broadcastAgentUpdate,
   } = useVpsDashboard(token)
 
   useEffect(() => {
@@ -181,6 +182,8 @@ export default function Dashboard() {
               screenshotIntervalSec={shotInterval}
               onScreenshotIntervalChange={(s) => pushShotInterval(s)}
               bulkActionsOnCooldown={isBulkCommandCoolingDown()}
+              authToken={token}
+              onPushAgentUpdate={broadcastAgentUpdate}
             />
 
             <VPSGrid

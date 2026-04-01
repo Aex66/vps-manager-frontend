@@ -88,6 +88,18 @@ export function useVpsDashboard(token: string | null) {
     return true
   }, [])
 
+  const broadcastAgentUpdate = useCallback(() => {
+    if (!send({ type: "broadcast_agent_update" })) {
+      toast({
+        title: "Not connected",
+        description: "Dashboard WebSocket is not open. Refresh and try again.",
+        variant: "destructive",
+      })
+      return
+    }
+    toast({ title: "Update check pushed to all agents" })
+  }, [send])
+
   const sendCommand = useCallback(
     (vpsId: string, cmd: string, opts?: { bypassCooldown?: boolean }) => {
       const now = Date.now()
@@ -349,5 +361,6 @@ export function useVpsDashboard(token: string | null) {
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
     agentRpc,
+    broadcastAgentUpdate,
   }
 }
