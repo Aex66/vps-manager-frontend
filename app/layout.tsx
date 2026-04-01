@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'CloudDeck - VPS Manager',
-  description: 'Modern VPS management dashboard',
+  title: 'Joseck - VPS Manager',
+  description: 'VPS Manager',
   generator: 'v0.app',
   icons: {
     icon: [
