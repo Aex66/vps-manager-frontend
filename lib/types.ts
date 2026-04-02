@@ -40,7 +40,11 @@ export type WSMsg =
     }
   | { type: "config_snapshot_interval"; seconds: number }
 
-export type VpsSettingsPanel = "yummy_config" | "yummy_auth" | "volt"
+export type VpsSettingsPanel =
+  | "yummy_config"
+  | "yummy_auth"
+  | "yummy_cookie"
+  | "volt"
 
 export const COMMANDS = [
   { id: "refresh_all", label: "Refresh All" },

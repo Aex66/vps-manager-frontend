@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from "react"
 import {
+  Cookie,
   FileJson,
   FileLock2,
   FolderOpen,
@@ -177,6 +178,16 @@ function VPSCard({
               }}
             >
               <FileLock2 className="h-4 w-4" /> Yummy auth
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!row}
+              onSelect={() => {
+                if (!row) return
+                window.setTimeout(() => onOpenSettings(row, "yummy_cookie"), 0)
+              }}
+            >
+              <Cookie className="h-4 w-4" /> Yummy cookie
             </DropdownMenuItem>
             <DropdownMenuItem
               className="gap-2"

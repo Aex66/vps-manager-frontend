@@ -73,16 +73,31 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
       return
     }
     if (panel === "volt") resetYummy()
-    else if (panel === "yummy_config" || panel === "yummy_auth")
+    else if (
+      panel === "yummy_config" ||
+      panel === "yummy_auth" ||
+      panel === "yummy_cookie"
+    )
       resetVolt()
   }, [open, panel, resetYummy, resetVolt])
 
   useEffect(() => {
-    if (!row || (panel !== "yummy_config" && panel !== "yummy_auth")) return
+    if (
+      !row ||
+      (panel !== "yummy_config" &&
+        panel !== "yummy_auth" &&
+        panel !== "yummy_cookie")
+    )
+      return
 
     let cancelled = false
     setYummyLoading(true)
-    const op = panel === "yummy_config" ? "read_yummy_config" : "read_yummy_auth"
+    const op =
+      panel === "yummy_config"
+        ? "read_yummy_config"
+        : panel === "yummy_auth"
+          ? "read_yummy_auth"
+          : "read_yummy_cookie"
     ;(async () => {
       try {
         const r = await agentRpc(row.id, { op })
@@ -191,9 +206,19 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
   }, [row?.id, panel, voltPath, agentRpc, voltFolder])
 
   const saveYummy = async () => {
-    if (!row || (panel !== "yummy_config" && panel !== "yummy_auth")) return
+    if (
+      !row ||
+      (panel !== "yummy_config" &&
+        panel !== "yummy_auth" &&
+        panel !== "yummy_cookie")
+    )
+      return
     const op =
-      panel === "yummy_config" ? "write_yummy_config" : "write_yummy_auth"
+      panel === "yummy_config"
+        ? "write_yummy_config"
+        : panel === "yummy_auth"
+          ? "write_yummy_auth"
+          : "write_yummy_cookie"
     setYummySaving(true)
     try {
       const r = await agentRpc(row.id, { op, content: yummyText })
@@ -314,9 +339,11 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
       ? "Yummy config (config.json)"
       : panel === "yummy_auth"
         ? "Yummy auth (auth.json)"
-        : panel === "volt"
-          ? "Volt files (%LOCALAPPDATA%\\Volt)"
-          : "Settings"
+        : panel === "yummy_cookie"
+          ? "Yummy cookie (cookie.txt)"
+          : panel === "volt"
+            ? "Volt files (%LOCALAPPDATA%\\Volt)"
+            : "Settings"
 
   return (
     <Dialog
@@ -332,7 +359,10 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        {(panel === "yummy_config" || panel === "yummy_auth") && row && (
+        {(panel === "yummy_config" ||
+          panel === "yummy_auth" ||
+          panel === "yummy_cookie") &&
+          row && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 py-4">
             {yummyLoading ? (
               <div className="flex justify-center py-12 text-muted-foreground">
