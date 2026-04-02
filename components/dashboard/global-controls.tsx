@@ -34,7 +34,7 @@ import { toast } from "@/hooks/use-toast"
 import { downloadAgentBundleBlob, uploadAgentBundle } from "@/lib/api"
 
 export type StatusFilter = "all" | "running" | "stopped" | "restarting"
-export type SortKey = "name" | "status" | "cpu" | "memory"
+export type SortKey = "name" | "status" | "cpu" | "roblox"
 
 interface GlobalControlsProps {
   viewMode: "grid" | "list"
@@ -299,8 +299,8 @@ export function GlobalControls({
               <DropdownMenuItem onClick={() => onSortKeyChange("name")}>Name</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onSortKeyChange("status")}>Status</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onSortKeyChange("cpu")}>CPU Usage</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSortKeyChange("memory")}>
-                Memory Usage
+              <DropdownMenuItem onClick={() => onSortKeyChange("roblox")}>
+                Roblox instances
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

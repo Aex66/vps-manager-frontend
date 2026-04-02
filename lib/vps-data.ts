@@ -19,7 +19,8 @@ export interface VPS {
   status: "running" | "stopped" | "restarting"
   ip: string
   cpu: number
-  memory: number
+  /** Roblox player processes (from agent metrics) */
+  robloxInstances: number
   storage: number
   uptime: string
   /** Set when this row comes from a live agent (`vps_list`). */
@@ -39,7 +40,10 @@ export function mapRowToVps(row: VPSRow): VPS {
       row.has_metrics && typeof row.cpu_percent === "number"
         ? Math.round(row.cpu_percent)
         : 0,
-    memory: 0,
+    robloxInstances:
+      row.has_metrics && typeof row.roblox_instances === "number"
+        ? row.roblox_instances
+        : 0,
     storage: 0,
     uptime: formatUptime(row.uptime_sec),
     agentRow: row,

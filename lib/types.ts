@@ -15,6 +15,8 @@ export type VPSRow = {
   uptime_sec?: number
   net_sent_mbps?: number
   net_recv_mbps?: number
+  /** Windows: count of RobloxPlayerBeta.exe processes */
+  roblox_instances?: number
 }
 
 export type AgentRpcResultMsg = {

@@ -28,8 +28,8 @@ function sortServers(list: VPS[], key: SortKey): VPS[] {
         return a.status.localeCompare(b.status)
       case "cpu":
         return b.cpu - a.cpu
-      case "memory":
-        return b.memory - a.memory
+      case "roblox":
+        return b.robloxInstances - a.robloxInstances
       default:
         return 0
     }

@@ -72,6 +72,41 @@ function UsageBar({ value, label }: { value: number; label: string }) {
   )
 }
 
+/** Visual density: 15 instances fills the bar (not a percentage of RAM). */
+const ROBLOX_BAR_CAP = 15
+
+function RobloxInstancesBar({
+  count,
+  hasMetrics,
+}: {
+  count: number
+  hasMetrics: boolean
+}) {
+  const fillPct = hasMetrics ? Math.min(100, (count / ROBLOX_BAR_CAP) * 100) : 0
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Roblox</span>
+        <span className="text-foreground">
+          {hasMetrics ? (count === 1 ? "1 instance" : `${count} instances`) : "—"}
+        </span>
+      </div>
+      <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
+        <div
+          className={cn("h-full rounded-full transition-all", {
+            "bg-muted-foreground/25": !hasMetrics,
+            "bg-success": hasMetrics && count === 0,
+            "bg-accent": hasMetrics && count > 0 && count < 10,
+            "bg-warning": hasMetrics && count >= 10 && count < ROBLOX_BAR_CAP,
+            "bg-destructive": hasMetrics && count >= ROBLOX_BAR_CAP,
+          })}
+          style={{ width: `${fillPct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function VPSCard({
   server,
   isSelected,
@@ -205,7 +240,10 @@ function VPSCard({
 
       <div className="space-y-2">
         <UsageBar value={server.cpu} label="CPU" />
-        <UsageBar value={server.memory} label="Memory" />
+        <RobloxInstancesBar
+          count={server.robloxInstances}
+          hasMetrics={Boolean(row?.has_metrics)}
+        />
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
