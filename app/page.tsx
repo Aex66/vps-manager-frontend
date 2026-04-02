@@ -9,6 +9,7 @@ import {
   type StatusFilter,
 } from "@/components/dashboard/global-controls"
 import { VPSGrid } from "@/components/dashboard/vps-grid"
+import { VPSList } from "@/components/dashboard/vps-list"
 import { LiveViewPanel } from "@/components/dashboard/live-view-panel"
 import { CommandFlyout } from "@/components/dashboard/command-flyout"
 import {
@@ -186,15 +187,27 @@ export default function Dashboard() {
               onPushAgentUpdate={broadcastAgentUpdate}
             />
 
-            <VPSGrid
-              servers={displayedServers}
-              selectedId={selectedId}
-              onSelect={(id) => setSelectedRow(vpsList.find((v) => v.id === id) ?? null)}
-              onRunCommand={sendCommand}
-              onOpenCommandMenu={openCommandMenu}
-              onOpenSettings={(row, panel) => setSettingsTarget({ row, panel })}
-              isVpsCommandCoolingDown={isVpsCommandCoolingDown}
-            />
+            {viewMode === "grid" ? (
+              <VPSGrid
+                servers={displayedServers}
+                selectedId={selectedId}
+                onSelect={(id) => setSelectedRow(vpsList.find((v) => v.id === id) ?? null)}
+                onRunCommand={sendCommand}
+                onOpenCommandMenu={openCommandMenu}
+                onOpenSettings={(row, panel) => setSettingsTarget({ row, panel })}
+                isVpsCommandCoolingDown={isVpsCommandCoolingDown}
+              />
+            ) : (
+              <VPSList
+                servers={displayedServers}
+                selectedId={selectedId}
+                onSelect={(id) => setSelectedRow(vpsList.find((v) => v.id === id) ?? null)}
+                onRunCommand={sendCommand}
+                onOpenCommandMenu={openCommandMenu}
+                onOpenSettings={(row, panel) => setSettingsTarget({ row, panel })}
+                isVpsCommandCoolingDown={isVpsCommandCoolingDown}
+              />
+            )}
 
             {totalCount === 0 && (
               <p className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">

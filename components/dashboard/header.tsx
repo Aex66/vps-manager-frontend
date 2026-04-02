@@ -1,12 +1,15 @@
 "use client"
 
-import { Bell, Search, Settings, ChevronDown } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Monitor, Moon, Search, Settings, Sun, ChevronDown } from "lucide-react"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -17,6 +20,13 @@ type HeaderProps = {
 }
 
 export function Header({ searchValue, onSearchChange, onLogout }: HeaderProps) {
+  const { setTheme, theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
       <div className="flex items-center gap-6">
@@ -37,12 +47,50 @@ export function Header({ searchValue, onSearchChange, onLogout }: HeaderProps) {
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <Bell className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <Settings className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground"
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              Appearance
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!mounted}
+              onClick={() => setTheme("light")}
+            >
+              <Sun className="h-4 w-4" />
+              Light
+              {mounted && theme === "light" ? <span className="ml-auto text-xs opacity-60">✓</span> : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!mounted}
+              onClick={() => setTheme("dark")}
+            >
+              <Moon className="h-4 w-4" />
+              Dark
+              {mounted && theme === "dark" ? <span className="ml-auto text-xs opacity-60">✓</span> : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              disabled={!mounted}
+              onClick={() => setTheme("system")}
+            >
+              <Monitor className="h-4 w-4" />
+              System
+              {mounted && theme === "system" ? <span className="ml-auto text-xs opacity-60">✓</span> : null}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-2">
