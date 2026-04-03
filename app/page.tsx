@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useState } from "react"
 import { Header } from "@/components/dashboard/header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import {
@@ -44,7 +44,6 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [sortKey, setSortKey] = useState<SortKey>("name")
-  const lastShotForId = useRef<string | null>(null)
   const [settingsTarget, setSettingsTarget] = useState<VpsSettingsTarget>(null)
 
   useLayoutEffect(() => {
@@ -85,26 +84,13 @@ export default function Dashboard() {
     totalCount,
     autoEnabled,
     autoMinDraft,
-    shotInterval,
     applyAutoRestart,
-    pushShotInterval,
     setAutoIntervalMinutes,
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
     agentRpc,
     broadcastAgentUpdate,
   } = useVpsDashboard(token)
-
-  useEffect(() => {
-    const id = selectedRow?.id
-    if (!id) {
-      lastShotForId.current = null
-      return
-    }
-    if (lastShotForId.current === id) return
-    lastShotForId.current = id
-    sendCommand(id, "screenshot", { bypassCooldown: true })
-  }, [selectedRow?.id, sendCommand])
 
   const displayedServers = useMemo(() => {
     let list = servers
@@ -180,8 +166,6 @@ export default function Dashboard() {
               onAutoRestartChange={applyAutoRestart}
               autoIntervalMinutes={autoMinDraft}
               onAutoIntervalMinutesChange={setAutoIntervalMinutes}
-              screenshotIntervalSec={shotInterval}
-              onScreenshotIntervalChange={(s) => pushShotInterval(s)}
               bulkActionsOnCooldown={isBulkCommandCoolingDown()}
               authToken={token}
               onPushAgentUpdate={broadcastAgentUpdate}

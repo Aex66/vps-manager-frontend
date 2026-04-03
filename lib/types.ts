@@ -38,9 +38,7 @@ export type WSMsg =
       type: "auto_restart_state"
       enabled: boolean
       interval_sec: number
-      screenshot_interval: number
     }
-  | { type: "config_snapshot_interval"; seconds: number }
 
 export type VpsSettingsPanel =
   | "yummy_config"

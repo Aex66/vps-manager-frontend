@@ -51,8 +51,6 @@ interface GlobalControlsProps {
   onAutoRestartChange: (enabled: boolean) => void
   autoIntervalMinutes: number
   onAutoIntervalMinutesChange: (minutes: number) => void
-  screenshotIntervalSec: number
-  onScreenshotIntervalChange: (seconds: number) => void
   /** True while bulk Start/Stop/Restart all are on cooldown */
   bulkActionsOnCooldown: boolean
   /** JWT for admin API (agent bundle upload/download). */
@@ -76,8 +74,6 @@ export function GlobalControls({
   onAutoRestartChange,
   autoIntervalMinutes,
   onAutoIntervalMinutesChange,
-  screenshotIntervalSec,
-  onScreenshotIntervalChange,
   bulkActionsOnCooldown,
   authToken,
   onPushAgentUpdate,
@@ -347,22 +343,6 @@ export function GlobalControls({
             className="h-8 w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             value={autoIntervalMinutes}
             onChange={(e) => onAutoIntervalMinutesChange(Number(e.target.value))}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Label
-            htmlFor="shot-interval"
-            className="text-muted-foreground text-sm whitespace-nowrap"
-          >
-            Screenshot interval (s)
-          </Label>
-          <Input
-            id="shot-interval"
-            type="number"
-            min={3}
-            className="h-8 w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            value={screenshotIntervalSec}
-            onChange={(e) => onScreenshotIntervalChange(Number(e.target.value))}
           />
         </div>
       </div>

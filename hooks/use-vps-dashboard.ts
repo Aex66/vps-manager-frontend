@@ -32,7 +32,6 @@ export function useVpsDashboard(token: string | null) {
   const [wsError, setWsError] = useState<string | null>(null)
   const [autoEnabled, setAutoEnabled] = useState(false)
   const [autoIntervalSec, setAutoIntervalSec] = useState(3600)
-  const [shotInterval, setShotInterval] = useState(5)
   const [cooldownTick, setCooldownTick] = useState(0)
   const vpsListRef = useRef<VPSRow[]>([])
   const wsRef = useRef<WebSocket | null>(null)
@@ -200,9 +199,7 @@ export function useVpsDashboard(token: string | null) {
         if (msg.type === "auto_restart_state") {
           setAutoEnabled(msg.enabled)
           setAutoIntervalSec(msg.interval_sec)
-          setShotInterval(msg.screenshot_interval)
         }
-        if (msg.type === "config_snapshot_interval") setShotInterval(msg.seconds)
         if (msg.type === "agent_rpc_result") {
           const w = rpcWaitersRef.current.get(msg.request_id)
           if (w) {
@@ -235,15 +232,6 @@ export function useVpsDashboard(token: string | null) {
       })
     },
     [send, autoIntervalSec],
-  )
-
-  const pushShotInterval = useCallback(
-    (sec: number) => {
-      const s = Math.max(3, sec)
-      setShotInterval(s)
-      send({ type: "set_screenshot_interval", interval_sec: s })
-    },
-    [send],
   )
 
   const setAutoIntervalMinutes = useCallback(
@@ -354,9 +342,7 @@ export function useVpsDashboard(token: string | null) {
     autoEnabled,
     autoMinDraft,
     autoIntervalSec,
-    shotInterval,
     applyAutoRestart,
-    pushShotInterval,
     setAutoIntervalMinutes,
     isVpsCommandCoolingDown,
     isBulkCommandCoolingDown,
