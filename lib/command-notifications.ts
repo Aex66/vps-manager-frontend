@@ -20,3 +20,15 @@ export function describeBulkCommand(cmd: string): string {
       return describeCommand(cmd)
   }
 }
+
+/** Agent → UI `command_rejected` reasons */
+export function describeCommandRejectReason(reason: string): string {
+  switch (reason) {
+    case "cmd_secret":
+      return "Command secret missing or wrong (match Settings → Command secret with secret.txt on the agent)."
+    case "unknown_command":
+      return "This agent does not support that command."
+    default:
+      return reason || "Rejected"
+  }
+}

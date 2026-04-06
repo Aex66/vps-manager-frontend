@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { wsUiUrl } from "@/lib/api"
-import { describeBulkCommand, describeCommand } from "@/lib/command-notifications"
+import {
+  describeBulkCommand,
+  describeCommand,
+  describeCommandRejectReason,
+} from "@/lib/command-notifications"
 import { downloadTextFile, sanitizeFilename } from "@/lib/downloadCookies"
 import { averageCpu, mapRowToVps, type VPS } from "@/lib/vps-data"
 import {
@@ -12,10 +16,13 @@ import {
   type WSMsg,
 } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { getCmdSecret } from "@/lib/cmd-secret"
 
 export type LogEntry = { t: number; message: string }
 
 const COMMAND_COOLDOWN_MS = 2500
+/** Screenshots are heavier than most agent commands; separate throttle per VPS. */
+const SCREENSHOT_COOLDOWN_MS = 10_000
 
 export function useVpsDashboard(token: string | null) {
   const [vpsList, setVpsList] = useState<VPSRow[]>([])
@@ -36,6 +43,7 @@ export function useVpsDashboard(token: string | null) {
   const vpsListRef = useRef<VPSRow[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const perVpsUntilRef = useRef<Record<string, number>>({})
+  const perVpsScreenshotUntilRef = useRef<Record<string, number>>({})
   const bulkUntilRef = useRef(0)
   const rpcWaitersRef = useRef<
     Map<
@@ -60,6 +68,10 @@ export function useVpsDashboard(token: string | null) {
 
   const isVpsCommandCoolingDown = useCallback((vpsId: string) => {
     return Date.now() < (perVpsUntilRef.current[vpsId] ?? 0)
+  }, [cooldownTick])
+
+  const isVpsScreenshotCoolingDown = useCallback((vpsId: string) => {
+    return Date.now() < (perVpsScreenshotUntilRef.current[vpsId] ?? 0)
   }, [cooldownTick])
 
   const isBulkCommandCoolingDown = useCallback(() => {
@@ -103,21 +115,45 @@ export function useVpsDashboard(token: string | null) {
     (vpsId: string, cmd: string, opts?: { bypassCooldown?: boolean }) => {
       const now = Date.now()
       if (!opts?.bypassCooldown) {
-        const until = perVpsUntilRef.current[vpsId] ?? 0
-        if (now < until) {
-          const sec = Math.ceil((until - now) / 1000)
-          toast({
-            title: "Command on cooldown",
-            description: `Wait ${sec}s before sending another command to this VPS.`,
-          })
-          return
+        if (cmd === "screenshot") {
+          const untilShot = perVpsScreenshotUntilRef.current[vpsId] ?? 0
+          if (now < untilShot) {
+            const sec = Math.ceil((untilShot - now) / 1000)
+            toast({
+              title: "Screenshot on cooldown",
+              description: `Wait ${sec}s before another capture on this VPS.`,
+            })
+            return
+          }
+          perVpsScreenshotUntilRef.current[vpsId] = now + SCREENSHOT_COOLDOWN_MS
+        } else {
+          const until = perVpsUntilRef.current[vpsId] ?? 0
+          if (now < until) {
+            const sec = Math.ceil((until - now) / 1000)
+            toast({
+              title: "Command on cooldown",
+              description: `Wait ${sec}s before sending another command to this VPS.`,
+            })
+            return
+          }
+          perVpsUntilRef.current[vpsId] = now + COMMAND_COOLDOWN_MS
         }
-        perVpsUntilRef.current[vpsId] = now + COMMAND_COOLDOWN_MS
         setCooldownTick((n) => n + 1)
       }
-      if (!send({ type: "run_command", vps_id: vpsId, cmd })) {
+      if (
+        !send({
+          type: "run_command",
+          vps_id: vpsId,
+          cmd,
+          cmd_secret: getCmdSecret(),
+        })
+      ) {
         if (!opts?.bypassCooldown) {
-          perVpsUntilRef.current[vpsId] = 0
+          if (cmd === "screenshot") {
+            perVpsScreenshotUntilRef.current[vpsId] = 0
+          } else {
+            perVpsUntilRef.current[vpsId] = 0
+          }
           setCooldownTick((n) => n + 1)
         }
         toast({
@@ -127,13 +163,7 @@ export function useVpsDashboard(token: string | null) {
         return
       }
       appendLog(vpsId, `Sent: ${cmd}`)
-      if (!opts?.bypassCooldown) {
-        const host = vpsListRef.current.find((v) => v.id === vpsId)?.hostname ?? vpsId
-        toast({
-          title: "Command sent",
-          description: `${describeCommand(cmd)} · ${host}`,
-        })
-      }
+      /* Success/error from agent: command_rejected toast, screenshot/cookies payloads, etc. */
     },
     [send, appendLog],
   )
@@ -151,7 +181,7 @@ export function useVpsDashboard(token: string | null) {
       }
       bulkUntilRef.current = now + COMMAND_COOLDOWN_MS
       setCooldownTick((n) => n + 1)
-      if (!send({ type: "broadcast_command", cmd })) {
+      if (!send({ type: "broadcast_command", cmd, cmd_secret: getCmdSecret() })) {
         bulkUntilRef.current = 0
         setCooldownTick((n) => n + 1)
         toast({
@@ -196,6 +226,12 @@ export function useVpsDashboard(token: string | null) {
           downloadTextFile(`${sanitizeFilename(host)}_cookie.txt`, msg.data)
           appendLog(msg.vps_id, "Cookies downloaded")
         }
+        if (msg.type === "deadcookie") {
+          const row = vpsListRef.current.find((x) => x.id === msg.vps_id)
+          const host = row?.hostname?.trim() || msg.vps_id
+          downloadTextFile(`${sanitizeFilename(host)}_deadcookie.txt`, msg.data)
+          appendLog(msg.vps_id, "Deadcookie downloaded")
+        }
         if (msg.type === "auto_restart_state") {
           setAutoEnabled(msg.enabled)
           setAutoIntervalSec(msg.interval_sec)
@@ -208,6 +244,20 @@ export function useVpsDashboard(token: string | null) {
             if (msg.ok) w.resolve(msg)
             else w.reject(new Error(msg.error || "Agent error"))
           }
+        }
+        if (msg.type === "command_rejected") {
+          const row = vpsListRef.current.find((x) => x.id === msg.vps_id)
+          const host = row?.hostname?.trim() || msg.vps_id
+          const why = describeCommandRejectReason(msg.reason)
+          appendLog(
+            msg.vps_id,
+            `Rejected: ${describeCommand(msg.cmd)} — ${msg.reason}`,
+          )
+          toast({
+            title: "Command rejected",
+            description: `${describeCommand(msg.cmd)} · ${host}: ${why}`,
+            variant: "destructive",
+          })
         }
       } catch {
         /* ignore */
@@ -299,6 +349,7 @@ export function useVpsDashboard(token: string | null) {
           type: "agent_rpc",
           vps_id: vpsId,
           request_id,
+          cmd_secret: getCmdSecret(),
           ...payload,
         })
         if (!sent) {
@@ -345,6 +396,7 @@ export function useVpsDashboard(token: string | null) {
     applyAutoRestart,
     setAutoIntervalMinutes,
     isVpsCommandCoolingDown,
+    isVpsScreenshotCoolingDown,
     isBulkCommandCoolingDown,
     agentRpc,
     broadcastAgentUpdate,

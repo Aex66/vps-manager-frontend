@@ -28,12 +28,16 @@ import type { LogEntry } from "@/hooks/use-vps-dashboard"
 interface LiveViewPanelProps {
   server: VPS | null
   onClose: () => void
+  /** When true, omit left border (e.g. inside a drawer). */
+  hideSideBorder?: boolean
   shotBase64?: string | null
   shotUpdatedAt?: number | null
   activityLogs?: LogEntry[]
   onRunCommand: (cmd: string) => void
-  /** Disables Start/Stop/Restart/Screenshot while per-VPS command cooldown is active */
+  /** Disables Start/Stop/Restart while per-VPS command cooldown is active */
   commandActionsDisabled?: boolean
+  /** Disables Capture/Screenshot only (separate screenshot throttle per VPS) */
+  screenshotActionsDisabled?: boolean
 }
 
 function generateChartData(seedCpu: number) {
@@ -103,11 +107,13 @@ function LogLine({
 export function LiveViewPanel({
   server,
   onClose,
+  hideSideBorder = false,
   shotBase64,
   shotUpdatedAt,
   activityLogs = [],
   onRunCommand,
   commandActionsDisabled = false,
+  screenshotActionsDisabled = false,
 }: LiveViewPanelProps) {
   const row = server?.agentRow
   const seedCpu = row?.has_metrics && typeof row.cpu_percent === "number" ? row.cpu_percent : server?.cpu ?? 30
@@ -151,7 +157,12 @@ export function LiveViewPanel({
 
   if (!server) {
     return (
-      <div className="flex h-full flex-col items-center justify-center border-l border-border bg-card p-8 text-center">
+      <div
+        className={cn(
+          "flex h-full flex-col items-center justify-center border-border bg-card p-8 text-center",
+          !hideSideBorder && "border-l",
+        )}
+      >
         <div className="mb-4 rounded-full bg-secondary p-4">
           <Terminal className="h-8 w-8 text-muted-foreground" />
         </div>
@@ -183,7 +194,12 @@ export function LiveViewPanel({
   }))
 
   return (
-    <div className="flex h-full flex-col border-l border-border bg-card">
+    <div
+      className={cn(
+        "flex h-full flex-col border-border bg-card",
+        !hideSideBorder && "border-l",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <div
@@ -223,7 +239,7 @@ export function LiveViewPanel({
                   size="sm"
                   variant="secondary"
                   type="button"
-                  disabled={commandActionsDisabled}
+                  disabled={screenshotActionsDisabled}
                   onClick={() => onRunCommand("screenshot")}
                 >
                   Capture now
@@ -275,7 +291,7 @@ export function LiveViewPanel({
               size="sm"
               variant="outline"
               className="gap-2"
-              disabled={commandActionsDisabled}
+              disabled={screenshotActionsDisabled}
               onClick={() => onRunCommand("screenshot")}
             >
               <Terminal className="h-4 w-4" /> Screenshot

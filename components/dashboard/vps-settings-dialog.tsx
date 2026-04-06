@@ -13,11 +13,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import type { AgentRpcResultMsg, VPSRow, VpsSettingsPanel } from "@/lib/types"
 import { vpsDisplayName } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import { Loader2, RotateCcw } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { downloadTextFile, sanitizeFilename } from "@/lib/downloadCookies"
 
 const VOLT_FOLDERS = ["autoexec", "workspace", "scripts"] as const
 type VoltFolder = (typeof VOLT_FOLDERS)[number]
+type CookieSubTab = "valid" | "dead"
 
 export type VpsSettingsTarget = {
   row: VPSRow
@@ -39,6 +41,11 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
   const panel = target?.panel
 
   const [yummyText, setYummyText] = useState("")
+  const [deadCookieText, setDeadCookieText] = useState("")
+  const [cookieSubTab, setCookieSubTab] = useState<CookieSubTab>("valid")
+  const [cookiePanelLoading, setCookiePanelLoading] = useState(false)
+  const [validCookieRefreshing, setValidCookieRefreshing] = useState(false)
+  const [deadCookieRefreshing, setDeadCookieRefreshing] = useState(false)
   const [yummyLoading, setYummyLoading] = useState(false)
   const [yummySaving, setYummySaving] = useState(false)
 
@@ -52,6 +59,11 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
 
   const resetYummy = useCallback(() => {
     setYummyText("")
+    setDeadCookieText("")
+    setCookieSubTab("valid")
+    setCookiePanelLoading(false)
+    setValidCookieRefreshing(false)
+    setDeadCookieRefreshing(false)
     setYummyLoading(false)
     setYummySaving(false)
   }, [])
@@ -82,22 +94,12 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
   }, [open, panel, resetYummy, resetVolt])
 
   useEffect(() => {
-    if (
-      !row ||
-      (panel !== "yummy_config" &&
-        panel !== "yummy_auth" &&
-        panel !== "yummy_cookie")
-    )
-      return
+    if (!row || (panel !== "yummy_config" && panel !== "yummy_auth")) return
 
     let cancelled = false
     setYummyLoading(true)
     const op =
-      panel === "yummy_config"
-        ? "read_yummy_config"
-        : panel === "yummy_auth"
-          ? "read_yummy_auth"
-          : "read_yummy_cookie"
+      panel === "yummy_config" ? "read_yummy_config" : "read_yummy_auth"
     ;(async () => {
       try {
         const r = await agentRpc(row.id, { op })
@@ -128,6 +130,101 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
       cancelled = true
     }
   }, [row?.id, panel, agentRpc])
+
+  useEffect(() => {
+    if (!row || panel !== "yummy_cookie") return
+
+    let cancelled = false
+    setCookiePanelLoading(true)
+    ;(async () => {
+      try {
+        const [validRes, deadRes] = await Promise.all([
+          agentRpc(row.id, { op: "read_yummy_cookie" }),
+          agentRpc(row.id, { op: "read_deadcookie" }),
+        ])
+        if (cancelled) return
+        if (validRes.ok && validRes.content != null) setYummyText(validRes.content)
+        else {
+          setYummyText("")
+          if (!validRes.ok)
+            toast({
+              title: "Could not read cookie.txt",
+              description: validRes.error || "Unknown error",
+              variant: "destructive",
+            })
+        }
+        if (deadRes.ok && deadRes.content != null) setDeadCookieText(deadRes.content)
+        else setDeadCookieText("")
+      } catch (e) {
+        if (!cancelled) {
+          toast({
+            title: "Could not load cookies",
+            description: e instanceof Error ? e.message : "Error",
+            variant: "destructive",
+          })
+          setYummyText("")
+          setDeadCookieText("")
+        }
+      } finally {
+        if (!cancelled) setCookiePanelLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [row?.id, panel, agentRpc])
+
+  const downloadDeadCookieFile = () => {
+    if (!row) return
+    const name = `${sanitizeFilename(vpsDisplayName(row))}_deadcookie.txt`
+    downloadTextFile(name, deadCookieText)
+    toast({ title: "Download started" })
+  }
+
+  const refreshValidCookie = async () => {
+    if (!row) return
+    setValidCookieRefreshing(true)
+    try {
+      const r = await agentRpc(row.id, { op: "read_yummy_cookie" })
+      if (r.ok && r.content != null) setYummyText(r.content)
+      else {
+        setYummyText("")
+        toast({
+          title: "Could not read cookie.txt",
+          description: r.error || "Unknown error",
+          variant: "destructive",
+        })
+      }
+    } catch (e) {
+      toast({
+        title: "Could not read cookie.txt",
+        description: e instanceof Error ? e.message : "Error",
+        variant: "destructive",
+      })
+      setYummyText("")
+    } finally {
+      setValidCookieRefreshing(false)
+    }
+  }
+
+  const refreshDeadCookie = async () => {
+    if (!row) return
+    setDeadCookieRefreshing(true)
+    try {
+      const r = await agentRpc(row.id, { op: "read_deadcookie" })
+      if (r.ok && r.content != null) setDeadCookieText(r.content)
+      else setDeadCookieText("")
+    } catch (e) {
+      toast({
+        title: "Could not read deadcookie.txt",
+        description: e instanceof Error ? e.message : "Error",
+        variant: "destructive",
+      })
+      setDeadCookieText("")
+    } finally {
+      setDeadCookieRefreshing(false)
+    }
+  }
 
   const refreshVoltList = useCallback(async () => {
     if (!row || panel !== "volt") return
@@ -340,7 +437,7 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
       : panel === "yummy_auth"
         ? "Yummy auth (auth.json)"
         : panel === "yummy_cookie"
-          ? "Yummy cookie (cookie.txt)"
+          ? "Yummy cookie (Valid & Dead)"
           : panel === "volt"
             ? "Volt files (%LOCALAPPDATA%\\Volt)"
             : "Settings"
@@ -359,10 +456,7 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        {(panel === "yummy_config" ||
-          panel === "yummy_auth" ||
-          panel === "yummy_cookie") &&
-          row && (
+        {(panel === "yummy_config" || panel === "yummy_auth") && row && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 px-6 py-4">
             {yummyLoading ? (
               <div className="flex justify-center py-12 text-muted-foreground">
@@ -393,6 +487,125 @@ export function VpsSettingsDialog({ target, onClose, agentRpc }: Props) {
                 )}
               </Button>
             </div>
+          </div>
+        )}
+
+        {panel === "yummy_cookie" && row && (
+          <div className="flex min-h-[420px] min-w-0 flex-1 flex-col gap-3 px-6 py-4">
+            {cookiePanelLoading ? (
+              <div className="flex flex-1 justify-center py-12 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : (
+              <Tabs
+                value={cookieSubTab}
+                onValueChange={(v) => setCookieSubTab(v as CookieSubTab)}
+              >
+                <div className="flex items-center gap-2">
+                  <TabsList className="flex-1 justify-start">
+                    <TabsTrigger value="valid">Valid</TabsTrigger>
+                    <TabsTrigger value="dead">Dead</TabsTrigger>
+                  </TabsList>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+                    title="Reload from agent"
+                    onClick={() =>
+                      cookieSubTab === "valid"
+                        ? refreshValidCookie()
+                        : refreshDeadCookie()
+                    }
+                    disabled={
+                      cookieSubTab === "valid"
+                        ? validCookieRefreshing
+                        : deadCookieRefreshing
+                    }
+                  >
+                    {(cookieSubTab === "valid"
+                      ? validCookieRefreshing
+                      : deadCookieRefreshing) ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <TabsContent
+                  value="valid"
+                  className="mt-3 flex min-h-0 flex-1 flex-col gap-2 data-[state=inactive]:hidden"
+                >
+                  <p className="text-[11px] text-muted-foreground">
+                    cookie.txt
+                  </p>
+                  {validCookieRefreshing ? (
+                    <div className="flex min-h-64 flex-1 items-center justify-center rounded-md border border-border bg-background/50">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <textarea
+                      className={cn(
+                        "min-h-64 flex-1 resize-y rounded-md border border-border bg-background",
+                        "font-mono text-sm text-foreground",
+                        "p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      )}
+                      value={yummyText}
+                      onChange={(e) => setYummyText(e.target.value)}
+                      spellCheck={false}
+                    />
+                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      onClick={saveYummy}
+                      disabled={validCookieRefreshing || yummySaving}
+                    >
+                      {yummySaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+                <TabsContent
+                  value="dead"
+                  className="mt-3 flex min-h-0 flex-1 flex-col gap-2 data-[state=inactive]:hidden"
+                >
+                  <p className="text-[11px] text-muted-foreground">
+                    switched/deadcookie.txt
+                  </p>
+                  {deadCookieRefreshing ? (
+                    <div className="flex min-h-64 flex-1 items-center justify-center rounded-md border border-border bg-background/50">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <textarea
+                      className={cn(
+                        "min-h-64 flex-1 resize-y rounded-md border border-border bg-muted/20",
+                        "font-mono text-sm text-foreground",
+                        "cursor-default p-3 focus-visible:outline-none",
+                      )}
+                      value={deadCookieText}
+                      readOnly
+                      spellCheck={false}
+                    />
+                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={downloadDeadCookieFile}
+                      disabled={deadCookieRefreshing}
+                    >
+                      Download .txt
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
         )}
 

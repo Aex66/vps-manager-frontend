@@ -9,7 +9,10 @@ type Props = {
   anchor: { x: number; y: number } | null
   onClose: () => void
   onCommand: (cmd: string) => void
+  /** Disables every command except Screenshot (use with `screenshotCooldown` for capture throttle). */
   commandsDisabled?: boolean
+  /** Disables only the Screenshot row (independent per-VPS cooldown). */
+  screenshotCooldown?: boolean
 }
 
 function computePanelPosition(anchor: { x: number; y: number }) {
@@ -36,6 +39,7 @@ export function CommandFlyout({
   onClose,
   onCommand,
   commandsDisabled = false,
+  screenshotCooldown = false,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
@@ -78,22 +82,26 @@ export function CommandFlyout({
         {vpsDisplayName(vps)}
       </p>
       <div className="py-1">
-        {COMMANDS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            role="menuitem"
-            disabled={commandsDisabled}
-            className="w-full cursor-pointer px-3 py-2.5 text-left text-sm leading-snug whitespace-normal break-words hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-            onClick={() => {
-              if (commandsDisabled) return
-              onCommand(c.id)
-              onClose()
-            }}
-          >
-            {c.label}
-          </button>
-        ))}
+        {COMMANDS.map((c) => {
+          const itemDisabled =
+            c.id === "screenshot" ? screenshotCooldown : commandsDisabled
+          return (
+            <button
+              key={c.id}
+              type="button"
+              role="menuitem"
+              disabled={itemDisabled}
+              className="w-full cursor-pointer px-3 py-2.5 text-left text-sm leading-snug whitespace-normal break-words hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+              onClick={() => {
+                if (itemDisabled) return
+                onCommand(c.id)
+                onClose()
+              }}
+            >
+              {c.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

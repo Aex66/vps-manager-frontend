@@ -33,6 +33,8 @@ export type WSMsg =
   | { type: "vps_list"; vps: VPSRow[] }
   | { type: "screenshot"; vps_id: string; data: string }
   | { type: "cookies"; vps_id: string; data: string }
+  | { type: "deadcookie"; vps_id: string; data: string }
+  | { type: "command_rejected"; vps_id: string; cmd: string; reason: string }
   | AgentRpcResultMsg
   | {
       type: "auto_restart_state"
@@ -56,6 +58,7 @@ export const COMMANDS = [
   { id: "restart_executor", label: "Restart Executor (Volt)" },
   { id: "kill_roblox", label: "Kill Roblox" },
   { id: "grab_cookies", label: "Grab All Cookies" },
+  { id: "grab_deadcookie", label: "Grab deadcookie.txt" },
   { id: "screenshot", label: "Screenshot" },
 ] as const
 

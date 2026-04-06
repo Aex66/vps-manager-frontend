@@ -1,6 +1,4 @@
 "use client"
-
-import { useRef, useState } from "react"
 import {
   RefreshCw,
   Power,
@@ -8,30 +6,17 @@ import {
   List,
   Filter,
   ArrowUpDown,
-  Upload,
-  Download,
-  Loader2,
-  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { toast } from "@/hooks/use-toast"
-import { downloadAgentBundleBlob, uploadAgentBundle } from "@/lib/api"
 
 export type StatusFilter = "all" | "running" | "stopped" | "restarting"
 export type SortKey = "name" | "status" | "cpu" | "roblox"
@@ -53,10 +38,6 @@ interface GlobalControlsProps {
   onAutoIntervalMinutesChange: (minutes: number) => void
   /** True while bulk Start/Stop/Restart all are on cooldown */
   bulkActionsOnCooldown: boolean
-  /** JWT for admin API (agent bundle upload/download). */
-  authToken: string
-  /** Ask all connected agents to check for an update immediately (WebSocket). */
-  onPushAgentUpdate: () => void
 }
 
 export function GlobalControls({
@@ -75,68 +56,7 @@ export function GlobalControls({
   autoIntervalMinutes,
   onAutoIntervalMinutesChange,
   bulkActionsOnCooldown,
-  authToken,
-  onPushAgentUpdate,
 }: GlobalControlsProps) {
-  const [uploadOpen, setUploadOpen] = useState(false)
-  const [uploadVersion, setUploadVersion] = useState("")
-  const [uploadFile, setUploadFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [downloading, setDownloading] = useState(false)
-  const pickRef = useRef<HTMLInputElement>(null)
-
-  const onPickFile = () => pickRef.current?.click()
-
-  const onSubmitUpload = async () => {
-    const v = uploadVersion.trim()
-    if (!v || !uploadFile) {
-      toast({
-        title: "Version and zip file required",
-        variant: "destructive",
-      })
-      return
-    }
-    setUploading(true)
-    try {
-      await uploadAgentBundle(authToken, v, uploadFile)
-      toast({ title: "Agent bundle uploaded" })
-      setUploadOpen(false)
-      setUploadVersion("")
-      setUploadFile(null)
-      if (pickRef.current) pickRef.current.value = ""
-    } catch (e) {
-      toast({
-        title: "Upload failed",
-        description: String(e),
-        variant: "destructive",
-      })
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const onDownloadBundle = async () => {
-    setDownloading(true)
-    try {
-      const blob = await downloadAgentBundleBlob(authToken)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "agent_update.zip"
-      a.click()
-      URL.revokeObjectURL(url)
-      toast({ title: "Download started" })
-    } catch (e) {
-      toast({
-        title: "Download failed",
-        description: String(e),
-        variant: "destructive",
-      })
-    } finally {
-      setDownloading(false)
-    }
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -175,88 +95,6 @@ export function GlobalControls({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <input
-            ref={pickRef}
-            type="file"
-            accept=".zip,application/zip"
-            className="hidden"
-            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="border-border"
-            title="Upload agent update (zip)"
-            onClick={() => setUploadOpen(true)}
-          >
-            <Upload className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="border-border"
-            title="Download agent bundle"
-            disabled={downloading}
-            onClick={() => void onDownloadBundle()}
-          >
-            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="border-border"
-            title="Push update check to all agents now"
-            onClick={onPushAgentUpdate}
-          >
-            <Zap className="h-4 w-4" />
-          </Button>
-          <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Upload agent bundle</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-2">
-                  <Label htmlFor="agent-ver">Version (semver)</Label>
-                  <Input
-                    id="agent-ver"
-                    placeholder="e.g. 1.2.0"
-                    value={uploadVersion}
-                    onChange={(e) => setUploadVersion(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Zip file</Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="secondary" size="sm" onClick={onPickFile}>
-                      Choose file
-                    </Button>
-                    <span className="text-muted-foreground truncate text-sm">
-                      {uploadFile ? uploadFile.name : "No file selected"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="button" disabled={uploading} onClick={() => void onSubmitUpload()}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    "Upload"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
